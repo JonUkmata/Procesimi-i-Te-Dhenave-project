@@ -1,8 +1,17 @@
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Configure EF Core DbContext
+var connectionString = builder.Configuration.GetConnectionString("procesimiAI");
+builder.Services.AddDbContext<AI.backend.Data.ApplicationDbContext>(options =>
+{
+    options.UseSqlServer(connectionString);
+});
 
 var app = builder.Build();
 

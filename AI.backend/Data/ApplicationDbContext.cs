@@ -9,5 +9,6 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Product> Products { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<Rating> Ratings { get; set; } // Add this line
+    public DbSet<Rating> Ratings { get; set; }
+    public DbSet<Comment> Comments { get; set; } // Add this line
 }

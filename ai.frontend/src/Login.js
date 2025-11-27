@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './Login.css';
 
 function Login({ onLogin }) {
     const [username, setUsername] = useState('');
@@ -38,28 +37,43 @@ function Login({ onLogin }) {
     };
 
     return (
-        <div className="login-container">
-            <form onSubmit={handleLogin} className="login-form">
-                <h2>Login</h2>
-                <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
-                <button type="submit">Login</button>
-                <div className="demo-accounts">
-                    <p><strong>Demo Accounts:</strong></p>
-                    <p>Admin: admin / temp123</p>
-                    <p>Customer: customer1 / temp123</p>
+        <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Background Pattern - Simplified */}
+            <div className="absolute inset-0 bg-black/10"></div>
+            
+            <form onSubmit={handleLogin} className="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md border border-white/20 relative z-10">
+                <h2 className="text-3xl font-bold text-primary text-center mb-8">Login</h2>
+                
+                <div className="space-y-4">
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all duration-300"
+                        required
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-secondary focus:ring-2 focus:ring-secondary/20 transition-all duration-300"
+                        required
+                    />
+                </div>
+                
+                <button 
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-accent to-secondary text-white py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:translate-y-[-2px] hover:shadow-xl mt-6"
+                >
+                    Login
+                </button>
+                
+                <div className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-xl border-l-4 border-primary">
+                    <p className="text-primary font-semibold mb-2">Demo Accounts:</p>
+                    <p className="text-gray-600 text-sm mb-1">Admin: admin / temp123</p>
+                    <p className="text-gray-600 text-sm">Customer: customer1 / temp123</p>
                 </div>
             </form>
         </div>

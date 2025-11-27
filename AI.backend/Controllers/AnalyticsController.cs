@@ -113,6 +113,160 @@ namespace AI.backend.Controllers
             }
         }
 
+        [HttpGet("comment-analysis")]
+        public async Task<ActionResult> GetCommentAnalysis()
+        {
+            try
+            {
+                // Use safe query with null handling
+                var comments = await _context.Comments
+                    .Include(c => c.Product)
+                    .Include(c => c.User)
+                    .Where(c => c.Text != null && c.Sentiment != null) // Filter out null values
+                    .ToListAsync();
+
+                if (!comments.Any())
+                {
+                    return Ok(new List<object>());
+                }
+
+                var analysis = comments.GroupBy(c => c.ProductId)
+                    .Select(g => new
+                    {
+                        ProductId = g.Key,
+                        ProductName = g.First().Product?.Name ?? "Unknown",
+                        TotalComments = g.Count(),
+                        PositiveComments = g.Count(c => c.Sentiment == "Positive"),
+                        NegativeComments = g.Count(c => c.Sentiment == "Negative"),
+                        NeutralComments = g.Count(c => c.Sentiment == "Neutral"),
+                        AverageSentimentScore = g.Average(c => c.SentimentScore),
+                        OverallSentiment = g.Average(c => c.SentimentScore) > 0.6 ? "Positive" : 
+                                         g.Average(c => c.SentimentScore) < 0.4 ? "Negative" : "Neutral",
+                        RecentComments = g.OrderByDescending(c => c.CreatedAt)
+                                         .Take(5)
+                                         .Select(c => new
+                                         {
+                                             Id = c.Id,
+                                             Text = c.Text ?? string.Empty,
+                                             Sentiment = c.Sentiment ?? "Neutral",
+                                             SentimentScore = c.SentimentScore,
+                                             Username = c.User?.Username ?? "Unknown",
+                                             CreatedAt = c.CreatedAt
+                                         })
+                                         .ToList(),
+                        CommentTrend = new
+                        {
+                            Last7Days = g.Count(c => c.CreatedAt >= DateTime.Now.AddDays(-7)),
+                            Last30Days = g.Count(c => c.CreatedAt >= DateTime.Now.AddDays(-30))
+                        }
+                    })
+                    .ToList();
+
+                return Ok(analysis);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in comment analysis: {ex.Message}");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("detailed-comment-analysis")]
+        public async Task<ActionResult> GetDetailedCommentAnalysis()
+        {
+            try
+            {
+                var comments = await _context.Comments
+                    .Include(c => c.Product)
+                    .Include(c => c.User)
+                    .Where(c => c.Text != null && c.Sentiment != null)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .ToListAsync();
+
+                // Update overall stats to include new categories
+                var overallStats = new
+                {
+                    TotalComments = comments.Count,
+                    VeryPositiveComments = comments.Count(c => c.Sentiment == "Very Positive"),
+                    PositiveComments = comments.Count(c => c.Sentiment == "Positive"),
+                    NeutralComments = comments.Count(c => c.Sentiment == "Neutral"),
+                    NegativeComments = comments.Count(c => c.Sentiment == "Negative"),
+                    VeryNegativeComments = comments.Count(c => c.Sentiment == "Very Negative"),
+                    AverageSentimentScore = comments.Any() ? Math.Round(comments.Average(c => c.SentimentScore), 2) : 0,
+                    CommentsLast7Days = comments.Count(c => c.CreatedAt >= DateTime.Now.AddDays(-7)),
+                    CommentsLast30Days = comments.Count(c => c.CreatedAt >= DateTime.Now.AddDays(-30))
+                };
+
+                var userCommentStats = comments
+                    .GroupBy(c => c.UserId)
+                    .Select(g => new
+                    {
+                        UserId = g.Key,
+                        Username = g.First().User?.Username ?? "Unknown",
+                        TotalComments = g.Count(),
+                        PositiveComments = g.Count(c => c.Sentiment == "Positive"),
+                        NegativeComments = g.Count(c => c.Sentiment == "Negative"),
+                        AverageSentimentScore = g.Average(c => c.SentimentScore)
+                    })
+                    .OrderByDescending(u => u.TotalComments)
+                    .Take(10)
+                    .ToList();
+
+                var recentComments = comments
+                    .Take(20)
+                    .Select(c => new
+                    {
+                        Id = c.Id,
+                        ProductName = c.Product?.Name ?? "Unknown",
+                        Text = (c.Text ?? string.Empty).Length > 100 ? 
+                              (c.Text ?? string.Empty).Substring(0, 100) + "..." : 
+                              (c.Text ?? string.Empty),
+                        FullText = c.Text ?? string.Empty,
+                        Sentiment = c.Sentiment ?? "Neutral",
+                        SentimentScore = c.SentimentScore,
+                        Username = c.User?.Username ?? "Unknown",
+                        CreatedAt = c.CreatedAt,
+                        TimeAgo = GetTimeAgo(c.CreatedAt)
+                    })
+                    .ToList();
+
+                var productAnalysis = comments.GroupBy(c => c.ProductId)
+                    .Select(g => new
+                    {
+                        ProductId = g.Key,
+                        ProductName = g.First().Product?.Name ?? "Unknown Product",
+                        TotalComments = g.Count(),
+                        VeryPositiveComments = g.Count(c => c.Sentiment == "Very Positive"),
+                        PositiveComments = g.Count(c => c.Sentiment == "Positive"),
+                        NeutralComments = g.Count(c => c.Sentiment == "Neutral"),
+                        NegativeComments = g.Count(c => c.Sentiment == "Negative"),
+                        VeryNegativeComments = g.Count(c => c.Sentiment == "Very Negative"),
+                        AverageSentimentScore = Math.Round(g.Average(c => c.SentimentScore), 2),
+                        OverallSentiment = g.Average(c => c.SentimentScore) > 0.7 ? "Very Positive" :
+                                        g.Average(c => c.SentimentScore) > 0.55 ? "Positive" :
+                                        g.Average(c => c.SentimentScore) > 0.45 ? "Neutral" :
+                                        g.Average(c => c.SentimentScore) > 0.3 ? "Negative" : "Very Negative"
+                    })
+                    .OrderByDescending(p => p.TotalComments)
+                    .ToList();
+
+                var result = new
+                {
+                    OverallStats = overallStats,
+                    TopCommenters = userCommentStats,
+                    RecentComments = recentComments,
+                    ProductAnalysis = productAnalysis
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in detailed comment analysis: {ex.Message}");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         private dynamic AnalyzeProduct(Product product, List<Rating> productRatings)
         {
             // Safely handle null or empty ratings
@@ -190,6 +344,18 @@ namespace AI.backend.Controllers
                     ? "Review critical products for improvements" 
                     : "Continue current strategy"
             };
+        }
+
+        private string GetTimeAgo(DateTime date)
+        {
+            var timeSpan = DateTime.Now - date;
+            
+            if (timeSpan.TotalMinutes < 1) return "just now";
+            if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m ago";
+            if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h ago";
+            if (timeSpan.TotalDays < 30) return $"{(int)timeSpan.TotalDays}d ago";
+            
+            return $"{(int)(timeSpan.TotalDays / 30)}mo ago";
         }
     }
 }
